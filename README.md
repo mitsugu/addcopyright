@@ -19,6 +19,7 @@ go install github.com/mitsugu/addcopyright@<tag name>
   "exiftool_path": "/usr/bin/exiftool"
 }
 ```
+  Note: Place addcopyright.json in **the current directory** where you run addcopyright.
 
 ### usage
 ```
