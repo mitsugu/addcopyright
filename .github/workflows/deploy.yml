@@ -29,8 +29,8 @@ jobs:
           elif [ ${{ matrix.os }} = 'macos-latest' ]; then
             GOOS=darwin GOARCH=amd64 go build -o artifacts/${{ matrix.os }}/addcopyright_amd64
             GOOS=darwin GOARCH=arm64 go build -o artifacts/${{ matrix.os }}/addcopyright_arm64
-            lipo -create -output artifacts/${{ matrix.os }}/addcopyright-macos artifacts/${{ matrix.os }}/addframe_amd64 artifacts/${{ matrix.os }}/addframe_arm64
-            rm artifacts/${{ matrix.os }}/addcopyright_amd64 artifacts/${{ matrix.os }}/addframe_arm64
+            lipo -create -output artifacts/${{ matrix.os }}/addcopyright-macos artifacts/${{ matrix.os }}/addcopyright_amd64 artifacts/${{ matrix.os }}/addframe_arm64
+            rm artifacts/${{ matrix.os }}/addcopyright_amd64 artifacts/${{ matrix.os }}/addcopyright_arm64
           fi
         shell: bash
 
@@ -105,16 +105,16 @@ jobs:
           ls -la build-windows-latest
 
           # Create ZIP files
-          if [ -f build-ubuntu-latest/addcopyright-linux ] && [ -f build-ubuntu-latest/addframe.json ]; then
-            zip -r zipped-artifacts/addcopyright-linux.zip build-ubuntu-latest/addframe-linux build-ubuntu-latest/addframe.json
+          if [ -f build-ubuntu-latest/addcopyright-linux ] && [ -f build-ubuntu-latest/addcopyright.json ]; then
+            zip -r zipped-artifacts/addcopyright-linux.zip build-ubuntu-latest/addcopyright-linux build-ubuntu-latest/addframe.json
           fi
 
-          if [ -f build-macos-latest/addcopyright-macos ] && [ -f build-macos-latest/addframe.json ]; then
-            zip -r zipped-artifacts/addcopyright-macos.zip build-macos-latest/addframe-macos build-macos-latest/addframe.json
+          if [ -f build-macos-latest/addcopyright-macos ] && [ -f build-macos-latest/addcopyright.json ]; then
+            zip -r zipped-artifacts/addcopyright-macos.zip build-macos-latest/addcopyright-macos build-macos-latest/addframe.json
           fi
 
-          if [ -f build-windows-latest/addcopyright.exe ] && [ -f build-windows-latest/addframe.json ]; then
-            zip -r zipped-artifacts/addcopyright-windows.zip build-windows-latest/addframe.exe build-windows-latest/addframe.json
+          if [ -f build-windows-latest/addcopyright.exe ] && [ -f build-windows-latest/addcopyright.json ]; then
+            zip -r zipped-artifacts/addcopyright-windows.zip build-windows-latest/addcopyright.exe build-windows-latest/addframe.json
           fi
 
           # Verify ZIP files creation
