@@ -62,7 +62,7 @@ jobs:
         with:
           files: |
             ./artifacts/addcopyright-macos-latest/addcopyright-macos
-            ./artifacts/addcopyright-windows-latest/addcopyrigt.exe
+            ./artifacts/addcopyright-windows-latest/addcopyright.exe
             ./artifacts/addcopyright-ubuntu-latest/addcopyright-linux
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
