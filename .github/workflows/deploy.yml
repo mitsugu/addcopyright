@@ -6,11 +6,11 @@ on:
       - 'v*.*.*'
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  build-ubuntu-macos:
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout code
@@ -24,45 +24,134 @@ jobs:
       - name: Build for ${{ matrix.os }}
         run: |
           mkdir -p artifacts/${{ matrix.os }}
-          case ${{ matrix.os }} in
-            ubuntu-latest)
-              go build -o artifacts/${{ matrix.os }}/addcopyright-linux
-              ;;
-            windows-latest)
-              go build -o artifacts/${{ matrix.os }}/addcopyright.exe
-              ;;
-            macos-latest)
-              go build -o artifacts/${{ matrix.os }}/addcopyright-macos
-              ;;
-          esac
+          if [ ${{ matrix.os }} = 'ubuntu-latest' ]; then
+            GOOS=linux GOARCH=amd64 go build -o artifacts/${{ matrix.os }}/addcopyright-linux
+          elif [ ${{ matrix.os }} = 'macos-latest' ]; then
+            GOOS=darwin GOARCH=amd64 go build -o artifacts/${{ matrix.os }}/addcopyright_amd64
+            GOOS=darwin GOARCH=arm64 go build -o artifacts/${{ matrix.os }}/addcopyright_arm64
+            lipo -create -output artifacts/${{ matrix.os }}/addcopyright-macos artifacts/${{ matrix.os }}/addframe_amd64 artifacts/${{ matrix.os }}/addframe_arm64
+            rm artifacts/${{ matrix.os }}/addcopyright_amd64 artifacts/${{ matrix.os }}/addframe_arm64
+          fi
+        shell: bash
 
-      - name: List build artifacts
-        run: ls -la artifacts/
+      - name: Copy addcopyright.json
+        run: cp addcopyright.json artifacts/${{ matrix.os }}/
+        shell: bash
 
-      - name: Upload artifacts
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: addcopyright-${{ matrix.os }}
-          path: artifacts/${{ matrix.os }}/
+          name: build-${{ matrix.os }}
+          path: artifacts/${{ matrix.os }}
 
-  release:
-    needs: build
+  build-windows:
+    runs-on: windows-latest
+    needs: build-ubuntu-macos
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22.*'
+
+      - name: Build for Windows
+        run: |
+          mkdir -p artifacts/windows-latest
+          go build -o artifacts/windows-latest/addcopyright.exe
+        shell: pwsh
+
+      - name: Copy addcopyright.json
+        run: Copy-Item -Path addcopyright.json -Destination artifacts/windows-latest/
+        shell: pwsh
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-windows-latest
+          path: artifacts/windows-latest
+
+  zip:
+    needs: [build-ubuntu-macos, build-windows]
     runs-on: ubuntu-latest
     steps:
-      - name: Download artifacts
+      - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
           path: ./artifacts
 
-      - name: List downloaded artifacts
-        run: ls -la ./artifacts/
+      - name: List artifacts directory
+        run: |
+          echo "Listing artifacts directory:"
+          ls -la ./artifacts || echo "artifacts directory not found"
+          echo "Listing zipped artifacts directory:"
+          ls -la ./artifacts/zipped-artifacts/ || echo "zipped-artifacts directory not found"
+        shell: bash
+
+      - name: Create ZIP files
+        run: |
+          mkdir -p artifacts/zipped-artifacts
+          cd artifacts
+
+          # List files to confirm existence
+          echo "Listing files in build-ubuntu-latest/"
+          ls -la build-ubuntu-latest
+
+          echo "Listing files in build-macos-latest/"
+          ls -la build-macos-latest
+
+          echo "Listing files in build-windows-latest/"
+          ls -la build-windows-latest
+
+          # Create ZIP files
+          if [ -f build-ubuntu-latest/addcopyright-linux ] && [ -f build-ubuntu-latest/addframe.json ]; then
+            zip -r zipped-artifacts/addcopyright-linux.zip build-ubuntu-latest/addframe-linux build-ubuntu-latest/addframe.json
+          fi
+
+          if [ -f build-macos-latest/addcopyright-macos ] && [ -f build-macos-latest/addframe.json ]; then
+            zip -r zipped-artifacts/addcopyright-macos.zip build-macos-latest/addframe-macos build-macos-latest/addframe.json
+          fi
+
+          if [ -f build-windows-latest/addcopyright.exe ] && [ -f build-windows-latest/addframe.json ]; then
+            zip -r zipped-artifacts/addcopyright-windows.zip build-windows-latest/addframe.exe build-windows-latest/addframe.json
+          fi
+
+          # Verify ZIP files creation
+          echo "Listing ZIP files"
+          ls -la zipped-artifacts/
+        shell: bash
+
+      - name: Upload ZIP files
+        uses: actions/upload-artifact@v4
+        with:
+          name: zipped-artifacts
+          path: artifacts/zipped-artifacts/
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 6
+          overwrite: true
+
+  release:
+    needs: zip
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download ZIP files
+        uses: actions/download-artifact@v4
+        with:
+          name: zipped-artifacts
+          path: ./artifacts
+
+      - name: Display structure of downloaded files
+        run: ls -R
 
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            ./artifacts/addcopyright-macos-latest/addcopyright-macos
-            ./artifacts/addcopyright-windows-latest/addcopyright.exe
-            ./artifacts/addcopyright-ubuntu-latest/addcopyright-linux
+            ./artifacts/addcopyright-linux.zip
+            ./artifacts/addcopyright-macos.zip
+            ./artifacts/addcopyright-windows.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
