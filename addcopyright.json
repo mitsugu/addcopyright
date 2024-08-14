@@ -1,4 +1,5 @@
 {
   "copyright": "MITSUGU OYAMA (online nick name OrzBruford)",
-  "exiftool_path": "/usr/bin/exiftool"
+  "exiftool_path": "/usr/bin/exiftool",
+  "imagemagick_path": "/home/mitsugu/.local/bin/magick"
 }

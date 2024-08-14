@@ -2,27 +2,52 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 
 	"github.com/urfave/cli/v2"
 )
 
-const configFileName = "addcopyright.json"
-
 type Config struct {
-	ExifToolPath string `json:"exiftool_path"`
-	Copyright    string `json:"copyright"`
+	ImageMagickPath string `json:"imagemagick_path"`
+	ExifToolPath    string `json:"exiftool_path"`
+	Copyright       string `json:"copyright"`
 }
+
+func (c *Config) readConfig(path string) (*Config, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	decoder := json.NewDecoder(file)
+	if err := decoder.Decode(c); err != nil {
+		return nil, err
+	}
+
+	return c, nil
+}
+
+var config Config
 
 func main() {
 	app := &cli.App{
 		Name:    "addcopyright",
 		Usage:   "Add copyright information to an image's EXIF data",
-		Version: "v1.0.1",
+		Version: "v1.1.0",
 		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:    "config",
+				Aliases: []string{"c"},
+				Usage:   "Load configuration from `FILE`",
+				Value:   "addcopyright.json",
+			},
 			&cli.StringFlag{
 				Name:     "input",
 				Aliases:  []string{"i"},
@@ -40,7 +65,11 @@ func main() {
 			inputFilePath := c.String("input")
 			outputFilePath := c.String("output")
 
-			config, err := readConfig()
+			configPath := c.String("config")
+			if configPath == "" {
+				configPath = "addcopyright.json"
+			}
+			config, err := config.readConfig(configPath)
 			if err != nil {
 				return fmt.Errorf("error reading config file: %w", err)
 			}
@@ -66,23 +95,23 @@ func main() {
 	}
 }
 
-func readConfig() (*Config, error) {
-	file, err := os.Open(configFileName)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	var config Config
-	decoder := json.NewDecoder(file)
-	if err := decoder.Decode(&config); err != nil {
-		return nil, err
-	}
-
-	return &config, nil
-}
-
 func copyFile(src, dst string) error {
+	if src == dst {
+		return errors.New("source and destination files are the same")
+	}
+
+	srcExt := strings.ToLower(filepath.Ext(src))
+	dstExt := strings.ToLower(filepath.Ext(dst))
+
+	if srcExt != dstExt {
+		cmd := exec.Command(config.ImageMagickPath, src, dst)
+		err := cmd.Run()
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
 	sourceFile, err := os.Open(src)
 	if err != nil {
 		return err
