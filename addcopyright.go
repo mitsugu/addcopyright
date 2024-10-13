@@ -40,7 +40,7 @@ func main() {
 	app := &cli.App{
 		Name:    "addcopyright",
 		Usage:   "Add copyright information to an image's EXIF data",
-		Version: "v1.1.0",
+		Version: "v1.1.1",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:    "config",
